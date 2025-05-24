@@ -161,7 +161,8 @@ settings)
 			"audacious" "X11 player" \
 			"opencp" "Open Cubic Player" \
 			"sunvox" "SunVox" \
-			"openmpt123" "OpenMPT" \
+			"openmpt123" "OpenMPT123" \
+			"openmpt" "OpenMPT" \
 			"vlc" "vlc player" \
 			"cvlc" "console vlc player" 3>&1 1>&2 2>&3)
 
@@ -221,6 +222,15 @@ PLAYEROPTS=''
 PLAYERBG='false'
 EOF
 			whiptail --msgbox "OpenMPT123 selected. Ensure 'openmpt123' command is in your PATH and can play modules directly." $LINES $COLUMNS
+			;;
+		openmpt)
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+PLAYER='$(which openmpt)'
+PLAYEROPTS='--play'
+PLAYERBG='false'
+EOF
+			whiptail --msgbox "OpenMPT selected. Ensure 'openmpt' command is in your PATH and can play modules directly." $LINES $COLUMNS
 			;;
 		vlc)
 			cat <<EOF >>~/.modarchiverc
