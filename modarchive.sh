@@ -225,7 +225,7 @@ if [ ! -e $PLAYER ]; then
 	exit 1
 fi
 
-if [ ${PLAYERBG} = "true" ] && [ -z $(pidof $PLAYER) ]; then
+if [ ${PLAYERBG} = "true" ] && [ -z "$(pidof $PLAYER)" ]; then
 	echo "$PLAYER isn't running. Please, launch it first"
 	usage
 	exit 1
