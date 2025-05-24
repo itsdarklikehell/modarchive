@@ -1,0 +1,11 @@
+#Where the song files will be downloaded
+MODPATH='/home/rizzo/sunvox/examples/modarchive'
+
+#The full path to player binary
+PLAYER='/usr/local/bin/sunvox'
+
+#Player options. In this case, queue songs to audacious playlist
+PLAYEROPTS='-p -v 100'
+
+#If this is true, player will be run in background
+PLAYERBG='false'
