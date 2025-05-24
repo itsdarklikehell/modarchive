@@ -4,8 +4,8 @@
 #                                                                             #
 #                               MODARCHIVE JUKEBOX SCRIPT                     #
 #                                                                             #
-#  Made by: Fernando Sancho AKA 'toptnc'                                      #
-#  email: toptnc@gmail.com                                                    #
+#  Made by: Bauke Molenaar AKA 'itsdarklikehell'                              #
+#  email: bauke.molnaar@gmail.com                                             #
 #                                                                             #
 #  This script plays mods from http://modarchive.org in random order          #
 #  It can fetch files from various categories                                 #
