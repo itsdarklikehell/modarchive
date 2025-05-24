@@ -5,7 +5,7 @@
 #                               MODARCHIVE JUKEBOX SCRIPT                     #
 #                                                                             #
 #  Made by: Bauke Molenaar AKA 'itsdarklikehell'                              #
-#  email: bauke.molnaar@gmail.com                                             #
+#  email: bauke.molenaar@gmail.com                                             #
 #                                                                             #
 #  This script plays mods from http://modarchive.org in random order          #
 #  It can fetch files from various categories                                 #
