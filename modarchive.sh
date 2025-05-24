@@ -23,10 +23,6 @@ PAGES=""
 MODLIST=""
 PL_AGE="3600"
 
-PLAYER='/usr/local/bin/sunvox'
-PLAYEROPTS='-p -v 100'
-PLAYERBG='false'
-
 TRACKSNUM=0
 
 #Configuration file overrides defaults
@@ -164,7 +160,10 @@ settings)
 			"mikmod" "Console player (default)" \
 			"audacious" "X11 player" \
 			"opencp" "Open Cubic Player" \
-			"sunvox" "SunVox (requires SunVox command line)" 3>&1 1>&2 2>&3)
+			"sunvox" "SunVox" \
+			"openmpt123" "OpenMPT" \
+			"vlc" "vlc player" \
+			"cvlc" "console vlc player" 3>&1 1>&2 2>&3)
 
 		exitstatus=$?
 		if [ $exitstatus != 0 ]; then
@@ -175,28 +174,73 @@ settings)
 
 		case $PLAYER_CHOICE in
 		audacious)
-			PLAYER='/usr/bin/audacious'
-			PLAYEROPTS='-e'
-			PLAYERBG='true'
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+
+PLAYER='$(which audacious)'
+PLAYEROPTS='-e'
+PLAYERBG='true'
+EOF
+			whiptail --msgbox "audacious selected. Ensure 'audacious' command is in your PATH and can play modules directly." $LINES $COLUMNS
 			;;
 		mikmod)
-			PLAYER='/usr/bin/mikmod'
-			PLAYEROPTS='-i -X --surround --hqmixer -f 48000 -X'
-			PLAYERBG='false'
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+
+PLAYER='$(which mikmod)'
+PLAYEROPTS='-i -X --surround --hqmixer -f 48000 -X'
+PLAYERBG='false'
+EOF
+			whiptail --msgbox "mikmod selected. Ensure 'mikmod' command is in your PATH and can play modules directly." $LINES $COLUMNS
 			;;
 		opencp)
-			PLAYER='/usr/bin/ocp'
-			PLAYEROPTS='-p'
-			PLAYERBG='false'
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+
+PLAYER='$(which ocp)'
+PLAYEROPTS='-p'
+PLAYERBG='false'
+EOF
+			whiptail --msgbox "Open Cubic Player selected. Ensure 'ocp' command is in your PATH and can play modules directly." $LINES $COLUMNS
 			;;
 		sunvox)
-			# Assuming sunvox command is 'sunvox' and it can play files directly
-			PLAYER='sunvox'
-			PLAYEROPTS=''    # Adjust options based on SunVox command line usage
-			PLAYERBG='false' # Or true, depending on how sunvox runs
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+
+PLAYER='$(which sunvox)'
+PLAYEROPTS='-p'
+PLAYERBG='false'
+EOF
 			whiptail --msgbox "SunVox selected. Ensure 'sunvox' command is in your PATH and can play modules directly." $LINES $COLUMNS
 			;;
-		?)
+		openmpt123)
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+PLAYER='$(which openmpt123)'
+PLAYEROPTS=''
+PLAYERBG='false'
+EOF
+			whiptail --msgbox "OpenMPT123 selected. Ensure 'openmpt123' command is in your PATH and can play modules directly." $LINES $COLUMNS
+			;;
+		vlc)
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+PLAYER='$(which vlc)'
+PLAYEROPTS='--play-and-exit'
+PLAYERBG='false'
+EOF
+			whiptail --msgbox "VLC selected. Ensure 'vlc' command is in your PATH and can play modules directly." $LINES $COLUMNS
+			;;
+		cvlc)
+			cat <<EOF >>~/.modarchiverc
+MODPATH='$HOME/sunvox/examples/modarchive'
+PLAYER='$(which cvlc)'
+PLAYEROPTS='--play-and-exit'
+PLAYERBG='false'
+EOF
+			whiptail --msgbox "VLC selected. Ensure 'vlc' command is in your PATH and can play modules directly." $LINES $COLUMNS
+			;;
+		*)
 			whiptail --msgbox "ERROR: ${PLAYER_CHOICE} player is not supported." $LINES $COLUMNS
 			exit 1
 			;;
@@ -347,8 +391,6 @@ done
 
 echo "Playback finished."
 
-# --- create_playlist function (keep as is) ---
-# Ensure this function is defined AFTER the variables it uses are defined
 create_playlist() {
 	PLAYLIST=""
 
@@ -393,12 +435,8 @@ create_playlist() {
 	fi
 }
 
-# Call create_playlist only if not in random mode (random fetches one by one)
 if [ -z "$RANDOMSONG" ]; then
 	create_playlist
 	TRACKSFOUND=$(wc -l "$MODPATH/$PLAYLISTFILE" | cut -d " " -f 1)
 	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." $LINES $COLUMNS
 fi
-
-# The main playback loop follows here, using the variables set above.
-# (The loop is already included above the function definition in this response for flow)
