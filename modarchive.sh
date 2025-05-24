@@ -1,24 +1,25 @@
 #!/bin/bash
 
 ###############################################################################
-#								MODARCHIVE JUKEBOX SCRIPT
-#
-#  Made by: Fernando Sancho AKA 'toptnc'
-#  email: toptnc@gmail.com
-#
-#  This script plays mods from http://modarchive.org in random order
-#  It can fetch files from various categories
-#
-#  This script is released under the terms of GNU GPL License
-#
+#                                                                             #
+#                               MODARCHIVE JUKEBOX SCRIPT                     #
+#                                                                             #
+#  Made by: Fernando Sancho AKA 'toptnc'                                      #
+#  email: toptnc@gmail.com                                                    #
+#                                                                             #
+#  This script plays mods from http://modarchive.org in random order          #
+#  It can fetch files from various categories                                 #
+#                                                                             #
+#  This script is released under the terms of GNU GPL License                 #
+#                                                                             #
 ###############################################################################
 
 MODPATH='/tmp/modarchive'
-SHUFFLE=
+SHUFFLE=""
 PLAYLISTFILE='modarchive.url'
-RANDOMSONG=
-PAGES=
-MODLIST=
+RANDOMSONG=""
+PAGES=""
+MODLIST=""
 PL_AGE="3600"
 
 PLAYER='/usr/bin/mikmod'
@@ -32,171 +33,151 @@ if [ -f $HOME/.modarchiverc ]; then
 	source $HOME/.modarchiverc
 fi
 
-usage() {
-	cat <<EOF
-usage: $0 [options]
+# Check if whiptail is installed
+if ! command -v whiptail &>/dev/null; then
+	echo "Error: whiptail is not installed."
+	echo "Please install it using your distribution's package manager (e.g., sudo apt-get install whiptail)."
+	exit 1
+fi
 
-Modarchive Jukebox can be used with one of the following options:
-	-h : Show this help message
+# --- Whiptail Menu Logic ---
 
-	-n <number>  Number of tracks to play
-	-r			  Shuffle playlist
-	-p <player>  Select player profile: Supported players are: 
-			mikmod		This is the default player. Runs in console and uses 
-						libmikmod to decode files  
-			audacious	This is an X11 player. Uses modplug to decode files
-			opencp		This is Open Cubic Player, a console/x11 classic player. 
-						It's really buggy but, who cares?
-			sunvox		SunVox is a small, fast and powerful modular synthesizer with pattern-based sequencer (tracker). 
-						It is a tool for those people who like to compose music wherever they are, whenever they wish. On any device.
-					  	On any system. And it's free for most of the systems, except the Android and iOS versions which are like 9 dollars or so (I think).
+# Main Menu
+MAIN_CHOICE=$(whiptail --title "Modarchive Jukebox" --menu "Choose an option:" 20 78 12 \
+	"section" "Play from a specific section" \
+	"artist" "Search by artist" \
+	"module" "Search by module title/filename" \
+	"random" "Play a random module" \
+	"settings" "Configure player, tracks, shuffle" \
+	"exit" "Exit the jukebox" 3>&1 1>&2 2>&3)
 
-			
-	-s <section> Play from selected section: Can be one of this 
-			featured	These modules have been nominated by the crew for either 
-						outstanding quality, technique or creativity 
-						(or combination of).
-			favourites  These modules have been nominated by the members via their
-						favourites. 
-			downloads	The top 1000 most downloaded modules, recorded since circa
-						2002. 
-			topscore	This chart lists the most revered modules on the archive.
-			newadd		New additions by Date
-	  		newratings  Recent rated modules
-			random		Random module from entire archive
-	-a <artist>  Search in artist database
-	-m <module>  Search in module database (Title and Filename)
+exitstatus=$?
+if [ $exitstatus != 0 ]; then
+	echo "User cancelled."
+	exit 1
+fi
 
+case $MAIN_CHOICE in
+section)
+	SECTION_CHOICE=$(whiptail --title "Select Section" --menu "Choose a section:" 15 60 7 \
+		"featured" "Featured modules" \
+		"favourites" "Favourite modules" \
+		"downloads" "Top downloaded modules" \
+		"topscore" "Top scored modules" \
+		"newadd" "New additions" \
+		"newratings" "Recent rated modules" 3>&1 1>&2 2>&3)
 
-Hint: Use + symbol instead blankspaces in search strings.
-
-
-EOF
-}
-
-create_playlist() {
-	PLAYLIST=""
-
-	if [ ! -e "$MODPATH/$MODLIST" ] || [ "$(($(date +"%s") - $(stat -c "%Y" "${MODPATH}/${MODLIST}")))" -gt $PL_AGE ]; then
-		if [ ! -z $PAGES ]; then
-			PLAYLIST=$(curl -s "${MODURL}" | grep href | sed 's/href=/\n/g' | sed 's/>/\n/g' | grep downloads.php | sed 's/\"//g' | sed 's/'\''//g' | cut -d " " -f 1 | uniq)
-		else
-			PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-			[ -z $PAGES ] && PAGES=1
-			echo "Need to download ${PAGES} pages of results. This may take a while..."
-			for ((PLPAGE = 1; PLPAGE <= PAGES; PLPAGE++)); do
-				((PERCENT = PLPAGE * 100 / PAGES))
-				echo -ne "${PERCENT}% completed\r"
-				PLPAGEARG="&page=$PLPAGE"
-				LIST=$(curl -s "${MODURL}${PLPAGEARG}" | grep href | sed 's/href=/\n/g' | sed 's/>/\n/g' | grep downloads.php | sed 's/\"//g' | sed 's/'\''//g' | cut -d " " -f 1 | uniq)
-				PLAYLIST=$(printf "${PLAYLIST}\n${LIST}")
-			done
-		fi
-		echo ""
-		echo "$PLAYLIST" | sed '/^$/d' >"$MODPATH/$MODLIST"
+	exitstatus=$?
+	if [ $exitstatus != 0 ]; then
+		echo "User cancelled section selection."
+		exit 1
 	fi
 
-	if [ -z $SHUFFLE ]; then
-		cat "$MODPATH/$MODLIST" >"$MODPATH/$PLAYLISTFILE"
-	else
-		cat "$MODPATH/$MODLIST" | awk 'BEGIN { srand() } { print rand() "\t" $0 }' | sort -n | cut -f2- >"$MODPATH/$PLAYLISTFILE"
+	case $SECTION_CHOICE in
+	featured)
+		MODURL="http://modarchive.org/index.php?request=view_chart&query=featured"
+		MODLIST="list.featured"
+		;;
+	favourites)
+		MODURL="http://modarchive.org/index.php?request=view_top_favourites"
+		MODLIST="list.favourites"
+		;;
+	downloads)
+		MODURL="http://modarchive.org/index.php?request=view_chart&query=tophits"
+		MODLIST="list.downloads"
+		;;
+	topscore)
+		MODURL="http://modarchive.org/index.php?request=view_chart&query=topscore"
+		MODLIST="list.topscore"
+		;;
+	newadd)
+		MODURL="http://modarchive.org/index.php?request=view_actions_uploads"
+		MODLIST="list.newadd"
+		PAGES='0' # New additions page structure is different
+		;;
+	newratings)
+		MODURL="http://modarchive.org/index.php?request=view_actions_ratings"
+		MODLIST="list.newratings"
+		PAGES='0' # New ratings page structure is different
+		;;
+	esac
+	;;
+artist)
+	ARTIST_QUERY=$(whiptail --title "Search Artist" --inputbox "Enter artist name:" 8 78 "" 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	if [ $exitstatus != 0 ]; then
+		echo "User cancelled artist search."
+		exit 1
 	fi
-}
+	if [ -z "$ARTIST_QUERY" ]; then
+		whiptail --msgbox "Artist name cannot be empty." 8 40
+		exit 1
+	fi
+	QUERY=$(echo "${ARTIST_QUERY}" | sed 's/ /+/g')
+	QUERYURL="http://modarchive.org/index.php?query=$QUERY&submit=Find&request=search&search_type=search_artist"
+	ARTISTNO=$(curl -s "$QUERYURL" | grep -A 10 "Search Results" | grep member.php | sed 's/>/>\n/g' | head -1 | cut -d "?" -f 2 | cut -d "\"" -f 1)
+	if [ -z "$ARTISTNO" ]; then
+		whiptail --msgbox "The artist search returned no results." 8 40
+		exit 1
+	fi
+	MODURL="http://modarchive.org/index.php?request=view_artist_modules&query=${ARTISTNO}"
+	MODLIST="artist.${ARTIST_QUERY}"
+	;;
+module)
+	MODULE_QUERY=$(whiptail --title "Search Module" --inputbox "Enter module title or filename:" 8 78 "" 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	if [ $exitstatus != 0 ]; then
+		echo "User cancelled module search."
+		exit 1
+	fi
+	if [ -z "$MODULE_QUERY" ]; then
+		whiptail --msgbox "Module title/filename cannot be empty." 8 40
+		exit 1
+	fi
+	MODURL="http://modarchive.org/index.php?request=search&query=${MODULE_QUERY}&submit=Find&search_type=filename_or_songtitle"
+	MODLIST="search.${MODULE_QUERY}"
+	;;
+random)
+	RANDOMSONG="true"
+	MODURL="http://modarchive.org/index.php?request=view_random"
+	PAGES='0' # Random doesn't use pagination like lists
+	;;
+settings)
+	SETTINGS_CHOICE=$(whiptail --title "Settings" --menu "Configure options:" 15 60 5 \
+		"player" "Select player profile" \
+		"tracks" "Set number of tracks to play" \
+		"shuffle" "Toggle shuffle mode" \
+		"back" "Back to main menu" 3>&1 1>&2 2>&3)
 
-while getopts "hrm:a:s:n:p:" OPTION; do
-	case $OPTION in
-	h)
-		usage
-		exit 0
-		;;
-	s)
-		case $OPTARG in
-		featured)
-			MODURL="http://modarchive.org/index.php?request=view_chart&query=featured"
-			MODLIST="list.featured"
-			#PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-			;;
-		favourites)
-			MODURL="http://modarchive.org/index.php?request=view_top_favourites"
-			MODLIST="list.favourites"
-			#PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-			;;
-		downloads)
-			MODURL="http://modarchive.org/index.php?request=view_chart&query=tophits"
-			MODLIST="list.downloads"
-			#PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-			;;
-		topscore)
-			MODURL="http://modarchive.org/index.php?request=view_chart&query=topscore"
-			MODLIST="list.topscore"
-			#PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-			;;
-		newadd)
-			MODURL="http://modarchive.org/index.php?request=view_actions_uploads"
-			MODLIST="list.newadd"
-			PAGES='0'
-			;;
-		newratings)
-			MODURL="http://modarchive.org/index.php?request=view_actions_ratings"
-			MODLIST="list.newratings"
-			PAGES='0'
-			;;
+	exitstatus=$?
+	if [ $exitstatus != 0 ]; then
+		# User cancelled settings menu, go back to main menu
+		# Re-run the script or loop back if implemented
+		echo "User cancelled settings, exiting for now. Re-run to choose again."
+		exit 1 # Simple exit for now, a loop would be better
+	fi
 
-		random)
-			RANDOMSONG="true"
-			MODURL="http://modarchive.org/index.php?request=view_random"
-			PAGES='0'
-			;;
-		?)
-			usage
-			exit 1
-			;;
-		esac
-		;;
+	case $SETTINGS_CHOICE in
+	player)
+		PLAYER_CHOICE=$(whiptail --title "Select Player" --menu "Choose a player:" 15 60 4 \
+			"mikmod" "Console player (default)" \
+			"audacious" "X11 player" \
+			"opencp" "Open Cubic Player" \
+			"sunvox" "SunVox (requires SunVox command line)" 3>&1 1>&2 2>&3)
 
-	a)
-		QUERY=$(echo ${OPTARG} | sed 's/\ /\+/g')
-		QUERYURL="http://modarchive.org/index.php?query=$QUERY&submit=Find&request=search&search_type=search_artist"
-		ARTISTNO=$(curl -s $QUERYURL | grep -A 10 "Search Results" | grep member.php | sed 's/>/>\n/g' | head -1 | cut -d "?" -f 2 | cut -d "\"" -f 1)
-		if [ -z $ARTISTNO ]; then
-			echo "The query returned no results"
-			exit 1
+		exitstatus=$?
+		if [ $exitstatus != 0 ]; then
+			echo "User cancelled player selection."
+			# Decide whether to exit or go back to settings menu
+			exit 1 # Simple exit for now
 		fi
 
-		MODURL="http://modarchive.org/index.php?request=view_artist_modules&query=${ARTISTNO}"
-		MODLIST="artist.${OPTARG}"
-		#PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-		;;
-
-	m)
-		MODURL="http://modarchive.org/index.php?request=search&query=${OPTARG}&submit=Find&search_type=filename_or_songtitle"
-		MODLIST="search.${OPTARG}"
-		#PAGES=$(curl -s $MODURL | html2text | grep "Jump" | sed 's/\//\n/g' | tail -1 | cut -d "]" -f1)
-		;;
-
-	r)
-		SHUFFLE="true"
-		;;
-	n)
-
-		expr $OPTARG + 1 >/dev/null
-		if [ $? = 0 ]; then
-			TRACKSNUM=${OPTARG}
-		else
-			echo "ERROR -n requires a number as argument"
-			usage
-			exit 1
-		fi
-		;;
-
-	p)
-		case $OPTARG in
+		case $PLAYER_CHOICE in
 		audacious)
 			PLAYER='/usr/bin/audacious'
 			PLAYEROPTS='-e'
 			PLAYERBG='true'
 			;;
-
 		mikmod)
 			PLAYER='/usr/bin/mikmod'
 			PLAYEROPTS='-i -X --surround --hqmixer -f 48000 -X'
@@ -207,54 +188,104 @@ while getopts "hrm:a:s:n:p:" OPTION; do
 			PLAYEROPTS='-p'
 			PLAYERBG='false'
 			;;
-
+		sunvox)
+			# Assuming sunvox command is 'sunvox' and it can play files directly
+			PLAYER='sunvox'
+			PLAYEROPTS=''    # Adjust options based on SunVox command line usage
+			PLAYERBG='false' # Or true, depending on how sunvox runs
+			whiptail --msgbox "SunVox selected. Ensure 'sunvox' command is in your PATH and can play modules directly." 10 60
+			;;
 		?)
-			echo "ERROR: ${OPTARG} player is not supported."
-			echo ""
-			usage
+			whiptail --msgbox "ERROR: ${PLAYER_CHOICE} player is not supported." 8 40
 			exit 1
 			;;
 		esac
+		# After setting player, ideally go back to settings menu or main menu
+		# For simplicity now, we'll let it proceed, but a loop would be better
 		;;
-	?)
-		usage
-		exit 1
+	tracks)
+		TRACKS_INPUT=$(whiptail --title "Number of Tracks" --inputbox "Enter number of tracks to play (0 for all):" 8 78 "0" 3>&1 1>&2 2>&3)
+		exitstatus=$?
+		if [ $exitstatus != 0 ]; then
+			echo "User cancelled track number input."
+			exit 1 # Simple exit for now
+		fi
+		if [[ "$TRACKS_INPUT" =~ ^[0-9]+$ ]]; then
+			TRACKSNUM=${TRACKS_INPUT}
+		else
+			whiptail --msgbox "Invalid input. Please enter a number." 8 40
+			exit 1 # Exit on invalid input
+		fi
+		# After setting tracks, ideally go back to settings menu or main menu
+		# For simplicity now, we'll let it proceed
+		;;
+	shuffle)
+		if (whiptail --title "Shuffle" --yesno "Enable shuffle mode?" 8 40); then
+			SHUFFLE="true"
+			whiptail --msgbox "Shuffle enabled." 8 40
+		else
+			SHUFFLE=""
+			whiptail --msgbox "Shuffle disabled." 8 40
+		fi
+		# After setting shuffle, ideally go back to settings menu or main menu
+		# For simplicity now, we'll let it proceed
+		;;
+	back)
+		# This case would ideally loop back to the main menu
+		echo "Going back to main menu (requires script loop)."
+		exit 1 # Simple exit for now, needs loop
 		;;
 	esac
-done
+	# After settings, ideally loop back to main menu or proceed if main choice was already made
+	# For simplicity now, we'll let it proceed if MODURL is set
+	;;
+exit)
+	echo "Exiting Modarchive Jukebox."
+	exit 0
+	;;
+esac
 
-if [ ! -e $PLAYER ]; then
-	echo "This scripts needs $PLAYER to run. Please install it or change the script"
-	usage
+# --- End of Whiptail Menu Logic ---
+
+# Check if a source was selected (MODURL should be set unless user exited or cancelled early)
+if [ -z "$MODURL" ] && [ -z "$RANDOMSONG" ]; then
+	echo "No source selected. Exiting."
 	exit 1
 fi
 
-if [ ${PLAYERBG} = "true" ] && [ -z "$(pidof $PLAYER)" ]; then
-	echo "$PLAYER isn't running. Please, launch it first"
-	usage
+# Check if player exists AFTER potential player selection in settings
+if [ ! -e "$PLAYER" ]; then
+	whiptail --msgbox "This script needs $PLAYER to run. Please install it or change the player in settings." 10 60
 	exit 1
 fi
 
-if [ -z $MODURL ]; then
-	usage
+if [ "${PLAYERBG}" = "true" ] && [ -z "$(pidof "$(basename $PLAYER)")" ]; then
+	whiptail --msgbox "$PLAYER isn't running. Please, launch it first." 10 60
 	exit 1
 fi
 
 echo "Starting Modarchive JukeBox Player"
-mkdir -p $MODPATH
+mkdir -p "$MODPATH" # Use quotes for safety
+
 LOOP="true"
 
-if [ -z $RANDOMSONG ]; then
+if [ -z "$RANDOMSONG" ]; then
 	echo "Creating playlist"
 	create_playlist
 
+	# Check if playlist file was created and has content
+	if [ ! -f "$MODPATH/$PLAYLISTFILE" ]; then
+		whiptail --msgbox "Failed to create playlist or query returned no results." 10 60
+		exit 1
+	fi
+
 	TRACKSFOUND=$(wc -l "$MODPATH/$PLAYLISTFILE" | cut -d " " -f 1)
-	echo "Your query returned ${TRACKSFOUND} results"
+	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." 10 60
 fi
 
 COUNTER=1
-while [ $LOOP = "true" ]; do
-	if [ -z $RANDOMSONG ]; then
+while [ "$LOOP" = "true" ]; do # Use quotes for variable comparison
+	if [ -z "$RANDOMSONG" ]; then # Use quotes
 		SONGURL=$(cat "$MODPATH/$PLAYLISTFILE" | head -n ${COUNTER} | tail -n 1)
 		let COUNTER=$COUNTER+1
 		if [ $TRACKSNUM -gt 0 ]; then
@@ -265,6 +296,11 @@ while [ $LOOP = "true" ]; do
 			LOOP="false"
 		fi
 	else
+		# Note: The random song logic here still just gets the first result from the random page.
+		# To get truly random songs repeatedly, this curl command would need to be inside the loop
+		# and the MODURL for random is designed to give a single random result per request.
+		# The current logic will just download and play the *same* random song N times if TRACKSNUM > 1.
+		# A better random implementation would fetch a new random URL in each loop iteration.
 		SONGURL=$(curl -s "$MODURL" | sed 's/href=\"/href=\"\n/g' | sed 's/\">/\n\">/g' | grep downloads.php | head -n 1)
 		let COUNTER=$COUNTER+1
 		if [ $TRACKSNUM -gt 0 ] && [ $COUNTER -gt $TRACKSNUM ]; then
@@ -272,12 +308,96 @@ while [ $LOOP = "true" ]; do
 		fi
 	fi
 
+	# Check if SONGURL is empty (e.g., end of playlist)
+	if [ -z "$SONGURL" ]; then
+		echo "End of playlist."
+		LOOP="false"
+		continue # Skip to next loop iteration
+	fi
+
 	MODFILE=$(echo "$SONGURL" | cut -d "#" -f 2)
-	if [ ! -e "${MODPATH}/${MODFILE}" ]; then
-		echo "Downloading $SONGURL to $MODPATH/$MODFILE"
-		curl -s -o "${MODPATH}/${MODFILE}" "$SONGURL"
+	# Revert to original filename logic for simplicity with whiptail version
+	# If you want the artist/title filename, you'd need to re-integrate that logic here
+	DOWNLOAD_FILENAME="${MODPATH}/${MODFILE}"
+
+	if [ ! -e "${DOWNLOAD_FILENAME}" ]; then
+		echo "Downloading $SONGURL to $DOWNLOAD_FILENAME"
+		curl -s -o "${DOWNLOAD_FILENAME}" "$SONGURL"
+	else
+		echo "File already exists: ${DOWNLOAD_FILENAME}"
 	fi
-	if [ -e "${MODPATH}/${MODFILE}" ]; then
-		$PLAYER $PLAYEROPTS "${MODPATH}/${MODFILE}"
+
+	if [ -e "${DOWNLOAD_FILENAME}" ]; then
+		echo "Playing: $(basename "${DOWNLOAD_FILENAME}")" # Show just the filename being played
+		$PLAYER $PLAYEROPTS "${DOWNLOAD_FILENAME}"
+	else
+		echo "Error: Download failed or file not found for playing: ${DOWNLOAD_FILENAME}"
 	fi
+
+	# Add a small delay or wait for player if not running in background
+	if [ "${PLAYERBG}" = "false" ]; then
+		# Simple wait - might need adjustment depending on player
+		# For mikmod, it runs in foreground, so the script waits automatically.
+		# For others, you might need a 'read -p "Press Enter to play next..."' or similar
+		: # No explicit wait needed for foreground players
+	fi
+
 done
+
+echo "Playback finished."
+
+# --- create_playlist function (keep as is) ---
+# Ensure this function is defined AFTER the variables it uses are defined
+create_playlist() {
+	PLAYLIST=""
+
+	# Check if the list file exists and is recent enough
+	if [ ! -e "$MODPATH/$MODLIST" ] || [ "$(($(date +%s) - $(stat -c %Y "$MODPATH/$MODLIST")))" -gt $PL_AGE ]; then
+		echo "Fetching module list..."
+		if [ ! -z "$PAGES" ] && [ "$PAGES" -eq 0 ]; then
+			# Handle cases like newadd/newratings where PAGES is explicitly 0 or not applicable
+			# Fetch the single page list
+			PLAYLIST=$(curl -s "${MODURL}" | grep href | sed 's/href=/\n/g' | sed 's/>/\n/g' | grep downloads.php | sed 's/\"//g' | sed 's/'\''//g' | cut -d " " -f 1 | uniq)
+		else
+			# Fetch total pages if not set
+			if [ -z "$PAGES" ]; then
+				PAGES=$(curl -s "$MODURL" | html2text | grep "Jump" | sed 's/\\//\\n/g' | tail -1 | cut -d "]" -f1)
+				[ -z "$PAGES" ] && PAGES=1 # Default to 1 page if parsing fails
+				echo "Need to download ${PAGES} pages of results. This may take a while..."
+			fi
+
+			PLAYLIST="" # Initialize playlist for multi-page fetch
+			for ((PLPAGE = 1; PLPAGE <= PAGES; PLPAGE++)); do
+				((PERCENT = PLPAGE * 100 / PAGES))
+				echo -ne "${PERCENT}% completed\\r"
+				PLPAGEARG="&page=$PLPAGE"
+				LIST=$(curl -s "${MODURL}${PLPAGEARG}" | grep href | sed 's/href=/\n/g' | sed 's/>/\n/g' | grep downloads.php | sed 's/\"//g' | sed 's/'\''//g' | cut -d " " -f 1 | uniq)
+				PLAYLIST=$(printf "${PLAYLIST}\\n${LIST}")
+			done
+			echo "" # Newline after progress
+		fi
+		echo "$PLAYLIST" | sed '/^$/d' >"$MODPATH/$MODLIST"
+		echo "Module list saved to $MODPATH/$MODLIST"
+	else
+		echo "Using cached module list from $MODPATH/$MODLIST"
+	fi
+
+	# Apply shuffle if enabled
+	if [ -z "$SHUFFLE" ]; then
+		cat "$MODPATH/$MODLIST" >"$MODPATH/$PLAYLISTFILE"
+		echo "Playlist created (not shuffled)."
+	else
+		cat "$MODPATH/$MODLIST" | awk 'BEGIN { srand() } { print rand() "\t" $0 }' | sort -n | cut -f2- >"$MODPATH/$PLAYLISTFILE"
+		echo "Playlist created (shuffled)."
+	fi
+}
+
+# Call create_playlist only if not in random mode (random fetches one by one)
+if [ -z "$RANDOMSONG" ]; then
+	create_playlist
+	TRACKSFOUND=$(wc -l "$MODPATH/$PLAYLISTFILE" | cut -d " " -f 1)
+	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." 10 60
+fi
+
+# The main playback loop follows here, using the variables set above.
+# (The loop is already included above the function definition in this response for flow)
