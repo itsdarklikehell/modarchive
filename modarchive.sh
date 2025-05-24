@@ -13,6 +13,7 @@
 #  This script is released under the terms of GNU GPL License                 #
 #                                                                             #
 ###############################################################################
+eval "$(resize)"
 
 MODPATH='/tmp/modarchive'
 SHUFFLE=""
@@ -22,8 +23,8 @@ PAGES=""
 MODLIST=""
 PL_AGE="3600"
 
-PLAYER='/usr/bin/mikmod'
-PLAYEROPTS='-i -X --surround --hqmixer -f 48000 -X'
+PLAYER='/usr/local/bin/sunvox'
+PLAYEROPTS='-p -v 100'
 PLAYERBG='false'
 
 TRACKSNUM=0
@@ -43,7 +44,7 @@ fi
 # --- Whiptail Menu Logic ---
 
 # Main Menu
-MAIN_CHOICE=$(whiptail --title "Modarchive Jukebox" --menu "Choose an option:" 20 78 12 \
+MAIN_CHOICE=$(whiptail --title "Modarchive Jukebox" --menu "Choose an option:" $LINES $COLUMNS $((LINES - 8)) \
 	"section" "Play from a specific section" \
 	"artist" "Search by artist" \
 	"module" "Search by module title/filename" \
@@ -59,7 +60,7 @@ fi
 
 case $MAIN_CHOICE in
 section)
-	SECTION_CHOICE=$(whiptail --title "Select Section" --menu "Choose a section:" 15 60 7 \
+	SECTION_CHOICE=$(whiptail --title "Select Section" --menu "Choose a section:" $LINES $COLUMNS $((LINES - 8)) \
 		"featured" "Featured modules" \
 		"favourites" "Favourite modules" \
 		"downloads" "Top downloaded modules" \
@@ -103,35 +104,35 @@ section)
 	esac
 	;;
 artist)
-	ARTIST_QUERY=$(whiptail --title "Search Artist" --inputbox "Enter artist name:" 8 78 "" 3>&1 1>&2 2>&3)
+	ARTIST_QUERY=$(whiptail --title "Search Artist" --inputbox "Enter artist name:" $LINES $COLUMNS "" 3>&1 1>&2 2>&3)
 	exitstatus=$?
 	if [ $exitstatus != 0 ]; then
 		echo "User cancelled artist search."
 		exit 1
 	fi
 	if [ -z "$ARTIST_QUERY" ]; then
-		whiptail --msgbox "Artist name cannot be empty." 8 40
+		whiptail --msgbox "Artist name cannot be empty." $LINES $COLUMNS
 		exit 1
 	fi
 	QUERY=$(echo "${ARTIST_QUERY}" | sed 's/ /+/g')
 	QUERYURL="http://modarchive.org/index.php?query=$QUERY&submit=Find&request=search&search_type=search_artist"
 	ARTISTNO=$(curl -s "$QUERYURL" | grep -A 10 "Search Results" | grep member.php | sed 's/>/>\n/g' | head -1 | cut -d "?" -f 2 | cut -d "\"" -f 1)
 	if [ -z "$ARTISTNO" ]; then
-		whiptail --msgbox "The artist search returned no results." 8 40
+		whiptail --msgbox "The artist search returned no results." $LINES $COLUMNS
 		exit 1
 	fi
 	MODURL="http://modarchive.org/index.php?request=view_artist_modules&query=${ARTISTNO}"
 	MODLIST="artist.${ARTIST_QUERY}"
 	;;
 module)
-	MODULE_QUERY=$(whiptail --title "Search Module" --inputbox "Enter module title or filename:" 8 78 "" 3>&1 1>&2 2>&3)
+	MODULE_QUERY=$(whiptail --title "Search Module" --inputbox "Enter module title or filename:" $LINES $COLUMNS "" 3>&1 1>&2 2>&3)
 	exitstatus=$?
 	if [ $exitstatus != 0 ]; then
 		echo "User cancelled module search."
 		exit 1
 	fi
 	if [ -z "$MODULE_QUERY" ]; then
-		whiptail --msgbox "Module title/filename cannot be empty." 8 40
+		whiptail --msgbox "Module title/filename cannot be empty." $LINES $COLUMNS
 		exit 1
 	fi
 	MODURL="http://modarchive.org/index.php?request=search&query=${MODULE_QUERY}&submit=Find&search_type=filename_or_songtitle"
@@ -143,7 +144,7 @@ random)
 	PAGES='0' # Random doesn't use pagination like lists
 	;;
 settings)
-	SETTINGS_CHOICE=$(whiptail --title "Settings" --menu "Configure options:" 15 60 5 \
+	SETTINGS_CHOICE=$(whiptail --title "Settings" --menu "Configure options:" $LINES $COLUMNS $((LINES - 8)) \
 		"player" "Select player profile" \
 		"tracks" "Set number of tracks to play" \
 		"shuffle" "Toggle shuffle mode" \
@@ -159,7 +160,7 @@ settings)
 
 	case $SETTINGS_CHOICE in
 	player)
-		PLAYER_CHOICE=$(whiptail --title "Select Player" --menu "Choose a player:" 15 60 4 \
+		PLAYER_CHOICE=$(whiptail --title "Select Player" --menu "Choose a player:" $LINES $COLUMNS $((LINES - 8)) \
 			"mikmod" "Console player (default)" \
 			"audacious" "X11 player" \
 			"opencp" "Open Cubic Player" \
@@ -193,10 +194,10 @@ settings)
 			PLAYER='sunvox'
 			PLAYEROPTS=''    # Adjust options based on SunVox command line usage
 			PLAYERBG='false' # Or true, depending on how sunvox runs
-			whiptail --msgbox "SunVox selected. Ensure 'sunvox' command is in your PATH and can play modules directly." 10 60
+			whiptail --msgbox "SunVox selected. Ensure 'sunvox' command is in your PATH and can play modules directly." $LINES $COLUMNS
 			;;
 		?)
-			whiptail --msgbox "ERROR: ${PLAYER_CHOICE} player is not supported." 8 40
+			whiptail --msgbox "ERROR: ${PLAYER_CHOICE} player is not supported." $LINES $COLUMNS
 			exit 1
 			;;
 		esac
@@ -213,19 +214,19 @@ settings)
 		if [[ "$TRACKS_INPUT" =~ ^[0-9]+$ ]]; then
 			TRACKSNUM=${TRACKS_INPUT}
 		else
-			whiptail --msgbox "Invalid input. Please enter a number." 8 40
+			whiptail --msgbox "Invalid input. Please enter a number." $LINES $COLUMNS
 			exit 1 # Exit on invalid input
 		fi
 		# After setting tracks, ideally go back to settings menu or main menu
 		# For simplicity now, we'll let it proceed
 		;;
 	shuffle)
-		if (whiptail --title "Shuffle" --yesno "Enable shuffle mode?" 8 40); then
+		if (whiptail --title "Shuffle" --yesno "Enable shuffle mode?" $LINES $COLUMNS); then
 			SHUFFLE="true"
-			whiptail --msgbox "Shuffle enabled." 8 40
+			whiptail --msgbox "Shuffle enabled." $LINES $COLUMNS
 		else
 			SHUFFLE=""
-			whiptail --msgbox "Shuffle disabled." 8 40
+			whiptail --msgbox "Shuffle disabled." $LINES $COLUMNS
 		fi
 		# After setting shuffle, ideally go back to settings menu or main menu
 		# For simplicity now, we'll let it proceed
@@ -255,12 +256,12 @@ fi
 
 # Check if player exists AFTER potential player selection in settings
 if [ ! -e "$PLAYER" ]; then
-	whiptail --msgbox "This script needs $PLAYER to run. Please install it or change the player in settings." 10 60
+	whiptail --msgbox "This script needs $PLAYER to run. Please install it or change the player in settings." $LINES $COLUMNS
 	exit 1
 fi
 
 if [ "${PLAYERBG}" = "true" ] && [ -z "$(pidof "$(basename $PLAYER)")" ]; then
-	whiptail --msgbox "$PLAYER isn't running. Please, launch it first." 10 60
+	whiptail --msgbox "$PLAYER isn't running. Please, launch it first." $LINES $COLUMNS
 	exit 1
 fi
 
@@ -275,12 +276,12 @@ if [ -z "$RANDOMSONG" ]; then
 
 	# Check if playlist file was created and has content
 	if [ ! -f "$MODPATH/$PLAYLISTFILE" ]; then
-		whiptail --msgbox "Failed to create playlist or query returned no results." 10 60
+		whiptail --msgbox "Failed to create playlist or query returned no results." $LINES $COLUMNS
 		exit 1
 	fi
 
 	TRACKSFOUND=$(wc -l "$MODPATH/$PLAYLISTFILE" | cut -d " " -f 1)
-	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." 10 60
+	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." $LINES $COLUMNS
 fi
 
 COUNTER=1
@@ -396,7 +397,7 @@ create_playlist() {
 if [ -z "$RANDOMSONG" ]; then
 	create_playlist
 	TRACKSFOUND=$(wc -l "$MODPATH/$PLAYLISTFILE" | cut -d " " -f 1)
-	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." 10 60
+	whiptail --msgbox "Your query returned ${TRACKSFOUND} results." $LINES $COLUMNS
 fi
 
 # The main playback loop follows here, using the variables set above.
